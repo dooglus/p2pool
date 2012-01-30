@@ -432,13 +432,13 @@ class OkayTracker(forest.Tracker):
             timestamp_cutoff = min(int(time.time()), best_share.timestamp) - 3600
             target_cutoff = best_share.target*3//2
         else:
-            timestamp_cutoff = int(time.time() + 24*60*60)
+            timestamp_cutoff = int(time.time()) - 24*60*60
             target_cutoff = 2**256 - 1
         
         if p2pool.DEBUG:
             print 'Desire %i shares. Cutoff: %i %f' % (len(desired), timestamp_cutoff, bitcoin_data.target_to_difficulty(target_cutoff))
             for peer, hash, ts, targ in desired:
-                print '   ', peer, format_hash(hash), ts, bitcoin_data.target_to_difficulty(targ), ts >= timestamp_cutoff, targ <= target_cutoff
+                print '   ', '%s:%i' % peer.addr if peer is not None else None, format_hash(hash), ts, bitcoin_data.target_to_difficulty(targ), ts >= timestamp_cutoff, targ <= target_cutoff
         
         return best, [(peer, hash) for peer, hash, ts, targ in desired if ts >= timestamp_cutoff and targ <= target_cutoff]
     
