@@ -312,7 +312,12 @@ class OkayTracker(forest.Tracker):
                     bads.add(share.hash)
             else:
                 if last is not None:
-                    desired.add((self.shares[random.choice(list(self.reverse_shares[last]))].peer, last))
+                    desired.add((
+                        self.shares[random.choice(list(self.reverse_shares[last]))].peer,
+                        last,
+                        max(x.timestamp for x in self.get_chain(head, min(head_height, 5))),
+                        min(x.target for x in self.get_chain(head, min(head_height, 5))),
+                    ))
         for bad in bads:
             assert bad not in self.verified.shares
             assert bad in self.heads
@@ -333,7 +338,12 @@ class OkayTracker(forest.Tracker):
                 if not self.attempt_verify(share):
                     break
             if head_height < self.net.CHAIN_LENGTH and last_last_hash is not None:
-                desired.add((self.verified.shares[random.choice(list(self.verified.reverse_shares[last_hash]))].peer, last_last_hash))
+                desired.add((
+                    self.verified.shares[random.choice(list(self.verified.reverse_shares[last_hash]))].peer,
+                    last_last_hash,
+                    max(x.timestamp for x in self.get_chain(head, min(head_height, 5))),
+                    min(x.target for x in self.get_chain(head, min(head_height, 5))),
+                ))
         if p2pool.DEBUG:
             print len(self.verified.tails), "tails:"
             for x in self.verified.tails:
@@ -418,8 +428,19 @@ class OkayTracker(forest.Tracker):
                 if p2pool.DEBUG:
                     print 'Stale detected! %x < %x' % (best_share.header['previous_block'], previous_block)
                 best = best_share.previous_hash
+            
+            timestamp_cutoff = best_share.timestamp - 3600
+            target_cutoff = best_share.target*3//2
+        else:
+            timestamp_cutoff = int(time.time() + 24*60*60)
+            target_cutoff = 2**256 - 1
         
-        return best, desired
+        if p2pool.DEBUG:
+            print 'Desire %i shares. Cutoff: %i %f' % (len(desired), timestamp_cutoff, bitcoin_data.target_to_difficulty(target_cutoff))
+            for peer, hash, ts, targ in desired:
+                print '   ', peer, format_hash(hash), ts, bitcoin_data.target_to_difficulty(targ), ts >= timestamp_cutoff, targ <= target_cutoff
+        
+        return best, [(peer, hash) for peer, hash, ts, targ in desired if ts >= timestamp_cutoff and targ <= target_cutoff]
     
     def score(self, share_hash, ht):
         head_height = self.verified.get_height(share_hash)
