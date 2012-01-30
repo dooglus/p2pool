@@ -429,7 +429,7 @@ class OkayTracker(forest.Tracker):
                     print 'Stale detected! %x < %x' % (best_share.header['previous_block'], previous_block)
                 best = best_share.previous_hash
             
-            timestamp_cutoff = best_share.timestamp - 3600
+            timestamp_cutoff = min(int(time.time()), best_share.timestamp) - 3600
             target_cutoff = best_share.target*3//2
         else:
             timestamp_cutoff = int(time.time() + 24*60*60)
